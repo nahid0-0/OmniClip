@@ -11,6 +11,7 @@ class ClipboardManager: ObservableObject {
     private var lastCapturedImageData: Data?
     private var screenshotWatcher: ScreenshotWatcher?
     private var settingsObserver: AnyCancellable?
+    private var ignoreNextClipboardChange: Bool = false
     
     // Configuration
     private let maxTotalItems = 200
@@ -62,6 +63,9 @@ class ClipboardManager: ObservableObject {
         lastCapturedImageData = imageData
         lastCapturedText = nil
         
+        // Ignore the next clipboard change since we're about to copy the screenshot
+        ignoreNextClipboardChange = true
+        
         guard let imageClip = ImageClip(imageData: imageData) else {
             print("Failed to create image clip from screenshot")
             return
@@ -79,6 +83,12 @@ class ClipboardManager: ObservableObject {
         
         guard currentChangeCount != lastChangeCount else { return }
         lastChangeCount = currentChangeCount
+        
+        // Skip if this change was triggered by screenshot watcher
+        if ignoreNextClipboardChange {
+            ignoreNextClipboardChange = false
+            return
+        }
         
         let pasteboard = NSPasteboard.general
         
