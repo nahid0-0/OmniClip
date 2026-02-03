@@ -1,0 +1,219 @@
+import Foundation
+import AppKit
+import Combine
+
+class ClipboardManager: ObservableObject {
+    @Published var clips: [ClipType] = []
+    
+    private var lastChangeCount: Int
+    private var timer: Timer?
+    private var lastCapturedText: String?
+    private var lastCapturedImageData: Data?
+    private var screenshotWatcher: ScreenshotWatcher?
+    private var settingsObserver: AnyCancellable?
+    
+    // Configuration
+    private let maxTotalItems = 200
+    private let maxUnpinnedItems = 180
+    private let maxPinnedItems = 50
+    private let pollInterval: TimeInterval = 0.5
+    
+    init() {
+        self.lastChangeCount = NSPasteboard.general.changeCount
+        startMonitoring()
+    }
+    
+    deinit {
+        stopMonitoring()
+    }
+    
+    // Start clipboard monitoring
+    func startMonitoring() {
+        timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
+            self?.checkClipboard()
+        }
+    }
+    
+    func stopMonitoring() {
+        timer?.invalidate()
+        timer = nil
+        screenshotWatcher?.stopWatching()
+    }
+    
+    // Start/stop screenshot watching based on settings
+    func configureScreenshotWatcher(enabled: Bool) {
+        if enabled {
+            if screenshotWatcher == nil {
+                screenshotWatcher = ScreenshotWatcher()
+                screenshotWatcher?.startWatching { [weak self] imageData in
+                    self?.captureScreenshot(imageData)
+                }
+            }
+        } else {
+            screenshotWatcher?.stopWatching()
+            screenshotWatcher = nil
+        }
+    }
+    
+    // Capture screenshot from file
+    private func captureScreenshot(_ imageData: Data) {
+        // Avoid duplicates - check if same image data recently captured
+        guard imageData != lastCapturedImageData else { return }
+        lastCapturedImageData = imageData
+        lastCapturedText = nil
+        
+        guard let imageClip = ImageClip(imageData: imageData) else {
+            print("Failed to create image clip from screenshot")
+            return
+        }
+        
+        DispatchQueue.main.async {
+            self.clips.insert(.image(imageClip), at: 0)
+            self.enforceCapacity()
+        }
+    }
+    
+    // Check for clipboard changes
+    private func checkClipboard() {
+        let currentChangeCount = NSPasteboard.general.changeCount
+        
+        guard currentChangeCount != lastChangeCount else { return }
+        lastChangeCount = currentChangeCount
+        
+        let pasteboard = NSPasteboard.general
+        
+        // Try to capture text first
+        if let string = pasteboard.string(forType: .string), !string.isEmpty {
+            captureText(string)
+            return
+        }
+        
+        // Try to capture image
+        if let imageData = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png) {
+            captureImage(imageData)
+            return
+        }
+    }
+    
+    // Capture text clip
+    private func captureText(_ text: String) {
+        // Deduplicate consecutive identical text
+        guard text != lastCapturedText else { return }
+        lastCapturedText = text
+        lastCapturedImageData = nil
+        
+        let newClip = TextClip(text: text)
+        
+        DispatchQueue.main.async {
+            self.clips.insert(.text(newClip), at: 0)
+            self.enforceCapacity()
+        }
+    }
+    
+    // Capture image clip
+    private func captureImage(_ imageData: Data) {
+        // Deduplicate consecutive identical images (basic comparison)
+        guard imageData != lastCapturedImageData else { return }
+        lastCapturedImageData = imageData
+        lastCapturedText = nil
+        
+        guard let imageClip = ImageClip(imageData: imageData) else {
+            print("Failed to create image clip or image too large")
+            return
+        }
+        
+        DispatchQueue.main.async {
+            self.clips.insert(.image(imageClip), at: 0)
+            self.enforceCapacity()
+        }
+    }
+    
+    // Enforce capacity limits (ring buffer with pin protection)
+    private func enforceCapacity() {
+        let pinnedCount = clips.filter { $0.isPinned }.count
+        let unpinnedCount = clips.count - pinnedCount
+        
+        // Remove oldest unpinned items if over limit
+        if unpinnedCount > maxUnpinnedItems {
+            let itemsToRemove = unpinnedCount - maxUnpinnedItems
+            var removed = 0
+            
+            clips = clips.filter { clip in
+                if removed >= itemsToRemove {
+                    return true
+                }
+                if !clip.isPinned {
+                    removed += 1
+                    return false
+                }
+                return true
+            }
+        }
+        
+        // Hard cap on total items
+        if clips.count > maxTotalItems {
+            clips = Array(clips.prefix(maxTotalItems))
+        }
+        
+        // Safeguard: limit pinned items
+        if pinnedCount > maxPinnedItems {
+            print("Warning: Too many pinned items (\(pinnedCount))")
+        }
+    }
+    
+    // Toggle pin status
+    func togglePin(for clipID: UUID) {
+        if let index = clips.firstIndex(where: { $0.id == clipID }) {
+            clips[index].isPinned.toggle()
+            
+            // Move pinned items to top
+            if clips[index].isPinned {
+                let clip = clips.remove(at: index)
+                let firstUnpinnedIndex = clips.firstIndex(where: { !$0.isPinned }) ?? 0
+                clips.insert(clip, at: firstUnpinnedIndex)
+            }
+        }
+    }
+    
+    // Delete specific clip
+    func delete(clipID: UUID) {
+        clips.removeAll { $0.id == clipID }
+    }
+    
+    // Clear unpinned clips
+    func clearUnpinned() {
+        clips.removeAll { !$0.isPinned }
+    }
+    
+    // Clear all clips
+    func clearAll() {
+        clips.removeAll()
+    }
+    
+    // Copy clip back to clipboard
+    func copyToClipboard(_ clip: ClipType) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        
+        switch clip {
+        case .text(let textClip):
+            pasteboard.setString(textClip.text, forType: .string)
+            lastCapturedText = textClip.text
+            lastChangeCount = pasteboard.changeCount
+            
+        case .image(let imageClip):
+            if let image = imageClip.fullImage() {
+                pasteboard.writeObjects([image])
+                lastCapturedImageData = imageClip.imageData
+                lastChangeCount = pasteboard.changeCount
+            }
+        }
+    }
+    
+    // Get sorted clips (pinned first)
+    var sortedClips: [ClipType] {
+        let pinned = clips.filter { $0.isPinned }
+        let unpinned = clips.filter { !$0.isPinned }
+        return pinned + unpinned
+    }
+}
