@@ -17,9 +17,6 @@ A lightweight clipboard manager for macOS that runs in the menu bar.
 
 **[Download OmniClip.app](https://github.com/nahid0-0/OmniClip/raw/main/build/OmniClip.app.zip)**
 
-Or download directly from the repository:
-- [OmniClip.app folder](https://github.com/nahid0-0/OmniClip/tree/main/build/OmniClip.app)
-
 ## Installation
 
 1. Download the app using the link above
