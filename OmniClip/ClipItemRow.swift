@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-struct ClipItemRow: View {
+struct ClipItemRow: View, Equatable {
     let clip: ClipType
     let isSelected: Bool
     let showTimestamp: Bool
@@ -9,6 +9,13 @@ struct ClipItemRow: View {
     let onCopy: () -> Void
     
     @State private var isHovering = false
+    
+    static func == (lhs: ClipItemRow, rhs: ClipItemRow) -> Bool {
+        lhs.clip.id == rhs.clip.id &&
+        lhs.isSelected == rhs.isSelected &&
+        lhs.showTimestamp == rhs.showTimestamp &&
+        lhs.clip.isPinned == rhs.clip.isPinned
+    }
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -61,10 +68,10 @@ struct ClipItemRow: View {
         switch clip {
         case .text(let textClip):
             VStack(alignment: .leading, spacing: 4) {
-                Text(textClip.text)
+                Text(String(textClip.text.prefix(200)))
                     .lineLimit(2)
                     .font(.system(size: 13))
-                    .foregroundColor(isSelected ? .primary : .primary)
+                    .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
                 
                 if showTimestamp {

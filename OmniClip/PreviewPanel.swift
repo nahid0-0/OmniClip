@@ -1,6 +1,51 @@
 import SwiftUI
 import AppKit
 
+// Virtualized text view - only renders visible lines, handles 100K+ chars smoothly
+private struct ScrollableTextView: NSViewRepresentable {
+    let text: String
+    
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        let textView = NSTextView()
+        
+        // Configure text view
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.isRichText = false
+        textView.font = NSFont.systemFont(ofSize: 13)
+        textView.textColor = NSColor.labelColor
+        textView.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.5)
+        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.autoresizingMask = [.width]
+        
+        // Configure scroll view
+        scrollView.documentView = textView
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.drawsBackground = false
+        scrollView.scrollerStyle = .overlay
+        
+        textView.string = text
+        
+        return scrollView
+    }
+    
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        if let textView = scrollView.documentView as? NSTextView {
+            if textView.string != text {
+                textView.string = text
+                textView.scrollToBeginningOfDocument(nil)
+            }
+        }
+    }
+}
+
 struct PreviewPanel: View {
     let clip: ClipType
     let clipboardManager: ClipboardManager
@@ -59,15 +104,10 @@ struct PreviewPanel: View {
             
             Divider()
             
-            // Content area
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    contentView
-                }
-                .padding(16)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(NSColor.textBackgroundColor))
+            // Content area - uses virtualized NSTextView for text, SwiftUI for images
+            contentArea
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(NSColor.textBackgroundColor))
             
             Divider()
             
@@ -79,7 +119,7 @@ struct PreviewPanel: View {
                         .foregroundColor(.secondary)
                     
                     if case .text(let textClip) = clip {
-                        Text("\(textClip.text.count) characters")
+                        Text("\(textClip.text.utf16.count) characters")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     } else if case .image(let imageClip) = clip {
@@ -109,40 +149,43 @@ struct PreviewPanel: View {
     }
     
     @ViewBuilder
-    private var contentView: some View {
+    private var contentArea: some View {
         switch clip {
         case .text(let textClip):
             VStack(alignment: .leading, spacing: 8) {
                 Text("Text Clip")
                     .font(.headline)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
                 
-                Text(textClip.text)
-                    .font(.system(size: 13))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                ScrollableTextView(text: textClip.text)
                     .cornerRadius(6)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             }
             
         case .image(let imageClip):
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Image Clip")
-                    .font(.headline)
-                
-                if let fullImage = imageClip.fullImage() {
-                    Image(nsImage: fullImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 300)
-                        .cornerRadius(8)
-                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                } else {
-                    Text("Unable to display image")
-                        .foregroundColor(.secondary)
-                        .padding()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Image Clip")
+                        .font(.headline)
+                    
+                    if let fullImage = imageClip.fullImage() {
+                        Image(nsImage: fullImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxHeight: 300)
+                            .cornerRadius(8)
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    } else {
+                        Text("Unable to display image")
+                            .foregroundColor(.secondary)
+                            .padding()
+                    }
                 }
+                .padding(16)
             }
+            .scrollIndicators(.never)
         }
     }
     

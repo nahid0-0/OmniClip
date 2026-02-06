@@ -63,7 +63,7 @@ struct ContentView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(filteredClips) { clip in
-                                ClipItemRow(
+                                EquatableView(content: ClipItemRow(
                                     clip: clip,
                                     isSelected: selectedClipID == clip.id,
                                     showTimestamp: appSettings.showTimestamps,
@@ -76,11 +76,12 @@ struct ContentView: View {
                                     onCopy: {
                                         clipboardManager.copyToClipboard(clip)
                                     }
-                                )
+                                ))
                                 Divider()
                             }
                         }
                     }
+                    .scrollIndicators(.never)
                 }
                 
                 Divider()

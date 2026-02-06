@@ -6,7 +6,15 @@
 	<dict>
 		<key>Resources/AppIcon.icns</key>
 		<data>
-		11+ZqekMSqvyd6GykcFXHqVIS0U=
+		j784oIeXTrQkPwPbTl/HCL417Hc=
+		</data>
+		<key>Resources/menubar_icon.png</key>
+		<data>
+		nRdk73Lb1R8pgoaqM+HG+5Z1C+M=
+		</data>
+		<key>Resources/menubar_icon@2x.png</key>
+		<data>
+		XCsGDY+oce6CQrmIgmuJdI+8Xqc=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -15,7 +23,21 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			0IVkmxaCnH/Q6Y39O3JkHQo3k/7kmW0ACM2Fqel/TGg=
+			HLf3BgIcb3salaIz0ZSX8aabUF+6KZulJp0MULx5EZk=
+			</data>
+		</dict>
+		<key>Resources/menubar_icon.png</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			ASQturKvoD9A/tdb1dpJWXNgpQ1M94ZUTojyF8Fv/Yk=
+			</data>
+		</dict>
+		<key>Resources/menubar_icon@2x.png</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			6GHohxvE/oaSX+wTqmoIV5UKGowx/SVqAiruGjG0U+8=
 			</data>
 		</dict>
 	</dict>

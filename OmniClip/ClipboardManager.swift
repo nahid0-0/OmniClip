@@ -14,9 +14,9 @@ class ClipboardManager: ObservableObject {
     private var ignoreNextClipboardChange: Bool = false
     
     // Configuration
-    private let maxTotalItems = 200
-    private let maxUnpinnedItems = 180
-    private let maxPinnedItems = 50
+    private let maxTotalItems = 20
+    private let maxUnpinnedItems = 15
+    private let maxPinnedItems = 5
     private let pollInterval: TimeInterval = 0.5
     
     init() {
@@ -91,16 +91,29 @@ class ClipboardManager: ObservableObject {
         }
         
         let pasteboard = NSPasteboard.general
+        let types = pasteboard.types ?? []
         
-        // Try to capture text first
-        if let string = pasteboard.string(forType: .string), !string.isEmpty {
-            captureText(string)
+        // Check for file URLs that point to images first
+        if types.contains(.fileURL),
+           let urlString = pasteboard.string(forType: .fileURL),
+           let url = URL(string: urlString),
+           ["png", "jpg", "jpeg", "gif", "tiff", "bmp", "webp", "heic"].contains(url.pathExtension.lowercased()),
+           let imageData = try? Data(contentsOf: url) {
+            captureImage(imageData)
             return
         }
         
-        // Try to capture image
-        if let imageData = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png) {
-            captureImage(imageData)
+        // Try to capture image data (e.g. copied from apps)
+        if types.contains(.tiff) || types.contains(.png) {
+            if let imageData = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png) {
+                captureImage(imageData)
+                return
+            }
+        }
+        
+        // Fall back to text
+        if let string = pasteboard.string(forType: .string), !string.isEmpty {
+            captureText(string)
             return
         }
     }

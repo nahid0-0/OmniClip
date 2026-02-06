@@ -27,7 +27,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "OmniClip")
+            let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+            button.image = NSImage(systemSymbolName: "list.clipboard", accessibilityDescription: "OmniClip")?.withSymbolConfiguration(config)
             button.action = #selector(togglePopover)
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])

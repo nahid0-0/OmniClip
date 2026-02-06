@@ -60,6 +60,10 @@ cp OmniClip/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png "$ICONSET_DIR
 iconutil -c icns "$ICONSET_DIR" -o "$RESOURCES_DIR/AppIcon.icns"
 rm -rf "$ICONSET_DIR"
 
+# Copy menu bar icon
+cp OmniClip/Assets.xcassets/MenuBarIcon.imageset/menubar_icon.png "$RESOURCES_DIR/menubar_icon.png"
+cp OmniClip/Assets.xcassets/MenuBarIcon.imageset/menubar_icon@2x.png "$RESOURCES_DIR/menubar_icon@2x.png"
+
 # Copy Assets (we'll create a simple one)
 mkdir -p "$RESOURCES_DIR/Assets.xcassets"
 
