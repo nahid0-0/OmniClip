@@ -4,6 +4,7 @@ import AppKit
 struct ClipItemRow: View, Equatable {
     let clip: ClipType
     let isSelected: Bool
+    let theme: AppTheme
     let onSelect: () -> Void
     let onCopy: () -> Void
     
@@ -24,7 +25,8 @@ struct ClipItemRow: View, Equatable {
     static func == (lhs: ClipItemRow, rhs: ClipItemRow) -> Bool {
         lhs.clip.id == rhs.clip.id &&
         lhs.isSelected == rhs.isSelected &&
-        lhs.clip.isPinned == rhs.clip.isPinned
+        lhs.clip.isPinned == rhs.clip.isPinned &&
+        lhs.theme == rhs.theme
     }
     
     var body: some View {
@@ -91,12 +93,16 @@ struct ClipItemRow: View, Equatable {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.secondary.opacity(0.18) : (isHovering ? Color.secondary.opacity(0.06) : Color(NSColor.controlBackgroundColor)))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.secondary.opacity(0.35) : Color.secondary.opacity(0.12), lineWidth: 1)
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(isSelected ? theme.cardBgSelected : (isHovering ? theme.cardBgHover : theme.cardBgNormal))
+                    if isSelected {
+                        Rectangle()
+                            .fill(Color.accentColor)
+                            .frame(width: 3)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 5))
             )
             .contentShape(Rectangle())
         }

@@ -5,9 +5,11 @@ import AppKit
 
 private class LineNumberRulerView: NSRulerView {
     private weak var textView: NSTextView?
+    var theme: AppTheme = .spaceGray
 
-    init(textView: NSTextView, scrollView: NSScrollView) {
+    init(textView: NSTextView, scrollView: NSScrollView, theme: AppTheme) {
         self.textView = textView
+        self.theme = theme
         super.init(scrollView: scrollView, orientation: .verticalRuler)
         self.clientView = textView
         self.ruleThickness = 40
@@ -20,15 +22,14 @@ private class LineNumberRulerView: NSRulerView {
               let layoutManager = textView.layoutManager,
               let sv = scrollView else { return }
 
-        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        (isDark ? NSColor(white: 0.13, alpha: 1) : NSColor(white: 0.95, alpha: 1)).setFill()
+        theme.nsRulerBg.setFill()
         rect.fill()
 
         // Right-edge separator line
-        (isDark ? NSColor(white: 0.25, alpha: 1) : NSColor(white: 0.80, alpha: 1)).setFill()
+        theme.nsRulerSeparator.setFill()
         NSRect(x: ruleThickness - 1, y: rect.minY, width: 1, height: rect.height).fill()
 
-        let fgColor = isDark ? NSColor(white: 0.38, alpha: 1) : NSColor(white: 0.58, alpha: 1)
+        let fgColor = NSColor(white: 0.38, alpha: 1)
         let font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: fgColor]
 
@@ -77,6 +78,7 @@ private struct ScrollableTextView: NSViewRepresentable {
     let text: String
     let syntaxHighlighting: Bool
     let showLineNumbers: Bool
+    let theme: AppTheme
     
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -96,7 +98,7 @@ private struct ScrollableTextView: NSViewRepresentable {
         textView.isRichText = true
         textView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         textView.textColor = NSColor.labelColor
-        textView.backgroundColor = NSColor.controlBackgroundColor
+        textView.backgroundColor = theme.nsEditorBg
         textView.textContainerInset = NSSize(width: 10, height: 10)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
@@ -112,7 +114,7 @@ private struct ScrollableTextView: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
 
         // Set up line number ruler
-        let ruler = LineNumberRulerView(textView: textView, scrollView: scrollView)
+        let ruler = LineNumberRulerView(textView: textView, scrollView: scrollView, theme: theme)
         scrollView.verticalRulerView = ruler
         scrollView.hasVerticalRuler = true
         scrollView.rulersVisible = showLineNumbers && looksLikeCode(text)
@@ -133,10 +135,15 @@ private struct ScrollableTextView: NSViewRepresentable {
     
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         if let textView = scrollView.documentView as? NSTextView {
+            // Update theme colors dynamically when theme changes
+            textView.backgroundColor = theme.nsEditorBg
             if textView.string != text {
                 applyText(to: textView)
                 textView.scrollToBeginningOfDocument(nil)
             }
+        }
+        if let ruler = scrollView.verticalRulerView as? LineNumberRulerView {
+            ruler.theme = theme
         }
         let shouldShow = showLineNumbers && looksLikeCode(text)
         if scrollView.rulersVisible != shouldShow {
@@ -175,7 +182,7 @@ private struct ScrollableTextView: NSViewRepresentable {
 // Basic syntax highlighter using NSAttributedString
 struct SyntaxHighlighter {
     static func highlight(_ code: String) -> NSAttributedString {
-        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let isDark = true // Always dark theme
         
         let baseFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         let baseColor = NSColor.labelColor
@@ -256,7 +263,7 @@ struct PreviewPanel: View {
             Divider()
             contentArea
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(NSColor.textBackgroundColor))
+                .background(appSettings.theme.emptyBg)
             Divider()
             detailsSection
             Divider()
@@ -318,7 +325,7 @@ struct PreviewPanel: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(appSettings.theme.panelBg)
     }
     
     // MARK: - Content Area
@@ -373,7 +380,7 @@ struct PreviewPanel: View {
                     Spacer()
                 }
             } else {
-                ScrollableTextView(text: textClip.text, syntaxHighlighting: appSettings.syntaxHighlighting, showLineNumbers: false)
+                ScrollableTextView(text: textClip.text, syntaxHighlighting: appSettings.syntaxHighlighting, showLineNumbers: false, theme: appSettings.theme)
                     .cornerRadius(6)
                     .padding(12)
             }
@@ -503,7 +510,7 @@ struct PreviewPanel: View {
                                 VStack(spacing: 6) {
                                     Color.clear.frame(height: 0).id("stackTop")
                                     ForEach(Array(set.items.enumerated()), id: \.offset) { index, item in
-                                        StackItemCard(item: item, index: index)
+                                        StackItemCard(item: item, index: index, theme: appSettings.theme)
                                     }
                                 }
                                 .padding(.horizontal, 16)
@@ -530,162 +537,144 @@ struct PreviewPanel: View {
             }
         }
     }
-    
-    // MARK: - Details Section (type-specific metadata not on cards)
-    
-    private var detailsSection: some View {
-        VStack(spacing: 0) {
-            // Full date (cards only show relative time)
-            detailRow(label: "Copied", value: dateFormatter.string(from: clip.createdAt))
-            
-            // Source app
-            if let appName = clip.sourceAppName {
-                Divider().padding(.leading, 12)
-                detailRow(label: "Source", value: appName)
-            }
-            
-            // Type-specific details
-            if case .text(let textClip) = clip {
-                Divider().padding(.leading, 12)
-                let charCount = textClip.text.count
-                let wordCount = textClip.text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
-                let lineCount = textClip.text.components(separatedBy: .newlines).count
-                detailRow(label: "Content", value: "\(charCount) chars · \(wordCount) words · \(lineCount) lines")
-            }
-            
-            if case .image(let imageClip) = clip {
-                Divider().padding(.leading, 12)
-                detailRow(label: "Dimensions", value: "\(imageClip.width) × \(imageClip.height) px")
-            }
-            
-            if case .file(let fileClip) = clip {
-                if !fileClip.isSingleFile {
-                    Divider().padding(.leading, 12)
-                    detailRow(label: "Files", value: "\(fileClip.fileCount) items")
-                }
-                if fileClip.isSingleFile {
-                    Divider().padding(.leading, 12)
-                    detailRow(label: "Extension", value: fileClip.fileExtension.uppercased())
-                }
-                Divider().padding(.leading, 12)
-                if fileClip.isSingleFile {
-                    detailRow(label: "Path", value: fileClip.filePath)
-                } else {
-                    detailRow(label: "Location", value: URL(fileURLWithPath: fileClip.filePaths.first ?? "").deletingLastPathComponent().path)
-                }
-            }
-            
-            if case .stack(let set) = clip {
-                Divider().padding(.leading, 12)
-                detailRow(label: "Items", value: "\(set.itemCount) stacked")
-                Divider().padding(.leading, 12)
-                let byteFormatter = ByteCountFormatter()
-                let totalSize = set.items.reduce(0) { $0 + $1.dataSize }
-                detailRow(label: "Total Size", value: byteFormatter.string(fromByteCount: Int64(totalSize)))
-                Divider().padding(.leading, 12)
-                detailRow(label: "Status", value: set.isAccepting ? "Stacking..." : "Finalized")
-            }
+        // MARK: - Details Section
+
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
+    private var contentDetailIcon: String {
+        switch clip {
+        case .text(let t): return t.isURL ? "link" : "doc.text"
+        case .image: return "photo"
+        case .file: return "doc"
+        case .stack: return "square.stack.3d.up.fill"
         }
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
     }
-    
-    private func detailRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.tertiary)
-                .textCase(.uppercase)
-                .frame(width: 72, alignment: .leading)
-            
-            Text(value)
-                .font(.system(size: 11))
-                .foregroundColor(.primary)
-                .lineLimit(1)
-                .textSelection(.enabled)
-            
-            Spacer()
+
+    private var contentDetailValue: String {
+        switch clip {
+        case .text(let t):
+            if t.isURL { return "URL" }
+            let chars = t.text.count
+            let words = t.text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+            let lines = t.text.components(separatedBy: .newlines).count
+            return "\(chars) chars · \(words) words · \(lines) lines"
+        case .image(let img):
+            return "\(img.width) × \(img.height) px"
+        case .file(let f):
+            return f.isSingleFile ? f.fileExtension.uppercased() : "\(f.fileCount) files"
+        case .stack(let s):
+            return "\(s.itemCount) items · \(s.isAccepting ? "Stacking" : "Finalized")"
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 5)
+    }
+
+    private var detailsSection: some View {
+        HStack(spacing: 0) {
+            detailColumn(
+                icon: contentDetailIcon,
+                label: "Content",
+                value: contentDetailValue
+            )
+        }
+        .frame(height: 44)
+        .background(appSettings.theme.panelBg)
+    }
+
+    private func detailColumn(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 13))
+                .foregroundColor(Color.white.opacity(0.4))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(Color.white.opacity(0.35))
+                    .textCase(.uppercase)
+                Text(value)
+                    .font(.system(size: 11))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
     }
     
     // MARK: - Action Bar
-    
+
     private var actionBar: some View {
         HStack(spacing: 8) {
-            Spacer()
-            
-            // Stack More button (only for finalized stacks)
-            if case .stack(let set) = clip, !set.isAccepting {
-                Button(action: {
-                    clipboardManager.resumeStacking(setID: clip.id)
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.square.on.square")
-                            .font(.system(size: 10))
-                        Text("Stack More")
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color.accentColor.opacity(0.12))
-                .cornerRadius(5)
-            }
-            
-            Button(action: {
-                clipboardManager.togglePin(for: clip.id)
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: clip.isPinned ? "pin.slash.fill" : "pin")
-                        .font(.system(size: 10))
-                    Text(clip.isPinned ? "Unpin" : "Pin")
-                        .font(.system(size: 11, weight: .medium))
-                }
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Color.accentColor.opacity(0.08))
-            .cornerRadius(5)
-            
-            Button(action: {
-                clipboardManager.copyToClipboard(clip)
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 10))
-                    Text("Copy")
-                        .font(.system(size: 11, weight: .medium))
-                }
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Color.accentColor.opacity(0.12))
-            .cornerRadius(5)
-            
+            // Delete button — direct, no menu
             Button(action: {
                 clipboardManager.delete(clipID: clip.id)
                 onClose()
             }) {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: "trash")
                         .font(.system(size: 10))
                     Text("Delete")
                         .font(.system(size: 11, weight: .medium))
                 }
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.07))
+                .cornerRadius(5)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Color.red.opacity(0.08))
-            .cornerRadius(5)
+
+            Spacer()
+
+            // Pin / Unpin button
+            Button(action: {
+                clipboardManager.togglePin(for: clip.id)
+            }) {
+                HStack(spacing: 5) {
+                    Image(systemName: clip.isPinned ? "pin.slash.fill" : "pin")
+                        .font(.system(size: 10))
+                    Text(clip.isPinned ? "Unpin" : "Pin")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundColor(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.07))
+                .cornerRadius(5)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+
+            // Copy button (primary CTA)
+            Button(action: {
+                clipboardManager.copyToClipboard(clip)
+            }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 10))
+                    Text("Copy")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Color.accentColor)
+                .cornerRadius(5)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(appSettings.theme.panelBg)
     }
     
     private static let byteFormatter: ByteCountFormatter = {
@@ -704,6 +693,7 @@ struct PreviewPanel: View {
 struct StackItemCard: View {
     let item: ClipType
     let index: Int
+    let theme: AppTheme
     @State private var isExpanded = false
     
     var body: some View {
@@ -763,11 +753,11 @@ struct StackItemCard: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor))
+                .fill(theme.cardBgNormal)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.secondary.opacity(0.12), lineWidth: 1)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
     }
     

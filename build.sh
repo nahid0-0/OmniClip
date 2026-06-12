@@ -38,7 +38,12 @@ swiftc -o "$MACOS_DIR/$APP_NAME" \
     OmniClip/ContentView.swift \
     OmniClip/ClipItemRow.swift \
     OmniClip/PreviewPanel.swift \
-    OmniClip/SettingsView.swift
+    OmniClip/SettingsView.swift \
+    OmniClip/NoteModels.swift \
+    OmniClip/NoteManager.swift \
+    OmniClip/NotesView.swift \
+    OmniClip/NoteEditorView.swift \
+    OmniClip/AddClipView.swift
 
 echo "📋 Copying resources..."
 

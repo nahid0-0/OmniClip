@@ -1,5 +1,148 @@
 import SwiftUI
+import AppKit
 import Carbon
+
+// MARK: - App Theme
+
+enum AppTheme: String, CaseIterable, Identifiable {
+    case spaceGray      = "spaceGray"
+    case nordicNight    = "nordicNight"
+    case deepOcean      = "deepOcean"
+    case githubDark     = "githubDark"
+    case cursorPure     = "cursorPure"
+    case cursorSlate    = "cursorSlate"
+    case cyberBlack     = "cyberBlack"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .spaceGray:   return "Space Gray"
+        case .nordicNight: return "Nordic Night"
+        case .deepOcean:   return "Deep Ocean"
+        case .githubDark:  return "GitHub Dark Blue"
+        case .cursorPure:  return "Cursor Pure Black"
+        case .cursorSlate: return "Cursor Slate Black"
+        case .cyberBlack:  return "Cyber Black"
+        }
+    }
+
+    // MARK: SwiftUI colors
+
+    var mainBg: Color {
+        switch self {
+        case .spaceGray:   return Color(hex: "1a1b1e")
+        case .nordicNight: return Color(hex: "0f141c")
+        case .deepOcean:   return Color(hex: "080d1a")
+        case .githubDark:  return Color(hex: "0d1117")
+        case .cursorPure:  return Color(hex: "0a0a0a")
+        case .cursorSlate: return Color(hex: "0b0d10")
+        case .cyberBlack:  return Color(hex: "0c0d0e")
+        }
+    }
+
+    var panelBg: Color {
+        switch self {
+        case .spaceGray:   return Color(hex: "1e1f23")
+        case .nordicNight: return Color(hex: "131a26")
+        case .deepOcean:   return Color(hex: "0d1428")
+        case .githubDark:  return Color(hex: "161b22")
+        case .cursorPure:  return Color(hex: "121212")
+        case .cursorSlate: return Color(hex: "0f1115")
+        case .cyberBlack:  return Color(hex: "131416")
+        }
+    }
+
+    var emptyBg: Color {
+        switch self {
+        case .spaceGray:   return Color(hex: "16171a")
+        case .nordicNight: return Color(hex: "0b0e14")
+        case .deepOcean:   return Color(hex: "040710")
+        case .githubDark:  return Color(hex: "090d13")
+        case .cursorPure:  return Color(hex: "050505")
+        case .cursorSlate: return Color(hex: "07080a")
+        case .cyberBlack:  return Color(hex: "080809")
+        }
+    }
+
+    var cardBgNormal: Color {
+        switch self {
+        case .spaceGray:   return Color(hex: "25262b")
+        case .nordicNight: return Color(hex: "1b2434")
+        case .deepOcean:   return Color(hex: "141f38")
+        case .githubDark:  return Color(hex: "21262d")
+        case .cursorPure:  return Color(hex: "181818")
+        case .cursorSlate: return Color(hex: "16191f")
+        case .cyberBlack:  return Color(hex: "181a1d")
+        }
+    }
+
+    var cardBgHover: Color {
+        switch self {
+        case .spaceGray:   return Color(hex: "2a2b30")
+        case .nordicNight: return Color(hex: "232f44")
+        case .deepOcean:   return Color(hex: "1b2a4c")
+        case .githubDark:  return Color(hex: "282e38")
+        case .cursorPure:  return Color(hex: "242424")
+        case .cursorSlate: return Color(hex: "1e222b")
+        case .cyberBlack:  return Color(hex: "22252a")
+        }
+    }
+
+    var cardBgSelected: Color {
+        switch self {
+        case .spaceGray:   return Color(hex: "2c2d32")
+        case .nordicNight: return Color(hex: "2b3a54")
+        case .deepOcean:   return Color(hex: "23355e")
+        case .githubDark:  return Color(hex: "30363d")
+        case .cursorPure:  return Color(hex: "2e2e2e")
+        case .cursorSlate: return Color(hex: "272c36")
+        case .cyberBlack:  return Color(hex: "2d3138")
+        }
+    }
+
+    // MARK: AppKit colors (for NSTextView, ruler, etc.)
+
+    var nsEditorBg: NSColor {
+        switch self {
+        case .spaceGray:   return NSColor(red: 22/255, green: 23/255, blue: 26/255, alpha: 1)
+        case .nordicNight: return NSColor(red: 11/255, green: 14/255, blue: 20/255, alpha: 1)
+        case .deepOcean:   return NSColor(red: 4/255,  green: 7/255,  blue: 16/255, alpha: 1)
+        case .githubDark:  return NSColor(red: 9/255,  green: 13/255, blue: 19/255, alpha: 1)
+        case .cursorPure:  return NSColor(red: 5/255,  green: 5/255,  blue: 5/255,  alpha: 1)
+        case .cursorSlate: return NSColor(red: 7/255,  green: 8/255,  blue: 10/255, alpha: 1)
+        case .cyberBlack:  return NSColor(red: 8/255,  green: 8/255,  blue: 9/255,  alpha: 1)
+        }
+    }
+
+    var nsRulerBg: NSColor {
+        switch self {
+        case .spaceGray:   return NSColor(white: 0.13, alpha: 1)
+        case .nordicNight: return NSColor(red: 13/255,  green: 18/255, blue: 28/255, alpha: 1)
+        case .deepOcean:   return NSColor(red: 8/255,   green: 13/255, blue: 28/255, alpha: 1)
+        case .githubDark:  return NSColor(red: 13/255,  green: 17/255, blue: 23/255, alpha: 1)
+        case .cursorPure:  return NSColor(white: 0.06, alpha: 1)
+        case .cursorSlate: return NSColor(red: 9/255,   green: 10/255, blue: 13/255, alpha: 1)
+        case .cyberBlack:  return NSColor(white: 0.07, alpha: 1)
+        }
+    }
+
+    var nsRulerSeparator: NSColor {
+        switch self {
+        case .spaceGray:   return NSColor(white: 0.25, alpha: 1)
+        case .nordicNight: return NSColor(red: 35/255,  green: 50/255,  blue: 80/255, alpha: 1)
+        case .deepOcean:   return NSColor(red: 20/255,  green: 40/255,  blue: 80/255, alpha: 1)
+        case .githubDark:  return NSColor(red: 48/255,  green: 54/255,  blue: 61/255, alpha: 1)
+        case .cursorPure:  return NSColor(white: 0.18, alpha: 1)
+        case .cursorSlate: return NSColor(white: 0.15, alpha: 1)
+        case .cyberBlack:  return NSColor(white: 0.16, alpha: 1)
+        }
+    }
+}
+
+
+// MARK: - App Settings
+
 
 class AppSettings: ObservableObject {
     @Published var copyOnClick: Bool {
@@ -29,6 +172,18 @@ class AppSettings: ObservableObject {
     @Published var usePopupMode: Bool {
         didSet {
             UserDefaults.standard.set(usePopupMode, forKey: "usePopupMode")
+        }
+    }
+    
+    @Published var isFloating: Bool {
+        didSet {
+            UserDefaults.standard.set(isFloating, forKey: "isFloating")
+        }
+    }
+    
+    @Published var theme: AppTheme {
+        didSet {
+            UserDefaults.standard.set(theme.rawValue, forKey: "appTheme")
         }
     }
     
@@ -138,6 +293,16 @@ class AppSettings: ObservableObject {
         
         self.usePopupMode = UserDefaults.standard.object(forKey: "usePopupMode") != nil
             ? UserDefaults.standard.bool(forKey: "usePopupMode") : false
+        
+        self.isFloating = UserDefaults.standard.object(forKey: "isFloating") != nil
+            ? UserDefaults.standard.bool(forKey: "isFloating") : false
+        
+        if let savedTheme = UserDefaults.standard.string(forKey: "appTheme"),
+           let theme = AppTheme(rawValue: savedTheme) {
+            self.theme = theme
+        } else {
+            self.theme = .spaceGray
+        }
         
         // Keyboard shortcuts
         self.keyboardModeEnabled = UserDefaults.standard.object(forKey: "keyboardModeEnabled") != nil

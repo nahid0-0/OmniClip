@@ -344,6 +344,16 @@ class ClipboardManager: ObservableObject {
     func delete(clipID: UUID) {
         clips.removeAll { $0.id == clipID }
     }
+
+    // Manually insert a plain-text clip (from the Add button)
+    func insertManual(title: String, text: String) {
+        let effectiveTitle = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : title
+        let clip = TextClip(text: text, sourceAppName: effectiveTitle, sourceAppBundleID: nil)
+        DispatchQueue.main.async {
+            self.clips.insert(.text(clip), at: 0)
+            self.enforceCapacity()
+        }
+    }
     
     // Clear unpinned clips
     func clearUnpinned() {

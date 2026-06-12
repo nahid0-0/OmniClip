@@ -14,7 +14,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var popover: NSPopover!
     private var panel: NSPanel!
     private var settingsWindow: NSWindow?
+    private var notesWindow: NSWindow?
     private var clipboardManager: ClipboardManager!
+    private var noteManager: NoteManager!
     private var appSettings: AppSettings!
     private var settingsObserver: AnyCancellable?
     private var hotkeyObservers: [AnyCancellable] = []
@@ -23,6 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var eventHandlerRef: EventHandlerRef?
     private var keyMonitor: Any?
     private var stackModeObserver: AnyCancellable?
+    private var floatingObserver: AnyCancellable?
     
     // Shared with ContentView
     let keyboardActions = KeyboardActionPublisher()
@@ -31,6 +34,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         appSettings = AppSettings()
         clipboardManager = ClipboardManager()
+        noteManager = NoteManager()
         
         clipboardManager.configureScreenshotWatcher(enabled: appSettings.captureScreenshots)
         
@@ -80,6 +84,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         popover.contentSize = NSSize(width: 900, height: 600)
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: popoverContentView)
+        popover.appearance = NSAppearance(named: .darkAqua)
         
         let panelContentView = ContentView(
             clipboardManager: clipboardManager,
@@ -105,11 +110,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.hidesOnDeactivate = true
         panel.contentView = NSHostingView(rootView: panelContentView)
         panel.delegate = self
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.minSize = NSSize(width: 700, height: 400)
+        
+        // Observe float toggle — must be after panel is created
+        floatingObserver = appSettings.$isFloating.sink { [weak self] floating in
+            guard let self = self else { return }
+            self.panel.hidesOnDeactivate = !floating
+            self.panel.level = floating ? .floating : .normal
+            if floating {
+                self.panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            } else {
+                self.panel.collectionBehavior = [.transient, .ignoresCycle, .fullScreenAuxiliary]
+            }
+        }
         
         // Embed toolbar in the titlebar row
         let titlebarAccessory = NSTitlebarAccessoryViewController()
-        let toolbarView = TitlebarToolbarView(toolbarState: toolbarState, clipboardManager: clipboardManager)
+        let toolbarView = TitlebarToolbarView(toolbarState: toolbarState, clipboardManager: clipboardManager, appSettings: appSettings)
         titlebarAccessory.view = NSHostingView(rootView: toolbarView)
         titlebarAccessory.layoutAttribute = .bottom
         panel.addTitlebarAccessoryViewController(titlebarAccessory)
@@ -136,6 +154,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self,
             selector: #selector(openSettings),
             name: .openOmniClipSettings,
+            object: nil
+        )
+        
+        // Listen for notes notification
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(openNotes),
+            name: .openNotesWindow,
             object: nil
         )
     }
@@ -410,13 +436,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 backing: .buffered,
                 defer: false
             )
-            // Prevent Cocoa from releasing the window on close (ARC already manages lifetime).
-            // Without this, the second open crashes because the underlying object is freed.
             window.isReleasedWhenClosed = false
             window.title = "Pasteboard Settings"
             window.center()
             window.contentView = NSHostingView(rootView: SettingsView(settings: appSettings))
-            // Nil out the reference when the user closes the window so it is recreated fresh next time
             NotificationCenter.default.addObserver(
                 forName: NSWindow.willCloseNotification,
                 object: window,
@@ -429,6 +452,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         settingsWindow?.center()
         settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    @objc func openNotes() {
+        if notesWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 760, height: 520),
+                styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                backing: .buffered,
+                defer: false
+            )
+            window.isReleasedWhenClosed = false
+            window.title = "Notes"
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.center()
+            window.minSize = NSSize(width: 600, height: 400)
+            let notesView = NotesView(noteManager: noteManager, appSettings: appSettings)
+            window.contentView = NSHostingView(rootView: notesView)
+            NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: window,
+                queue: .main
+            ) { [weak self] _ in
+                self?.notesWindow = nil
+            }
+            notesWindow = window
+        }
+        notesWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
     

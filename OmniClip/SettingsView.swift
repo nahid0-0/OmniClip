@@ -10,17 +10,37 @@ struct SettingsView: View {
             // Appearance section
             VStack(alignment: .leading, spacing: 12) {
                 Text("APPEARANCE")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                // Theme picker
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Theme")
+                        .font(.system(size: 12))
                     
-                    Toggle("Centered popup window", isOn: $settings.usePopupMode)
-                        .toggleStyle(.checkbox)
-                    
-                    Text("Opens as a centered window instead of dropping from the menu bar. Takes effect on next toggle.")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // Theme swatch grid — 2 columns
+                    let columns = [GridItem(.flexible()), GridItem(.flexible())]
+                    LazyVGrid(columns: columns, spacing: 8) {
+                        ForEach(AppTheme.allCases) { theme in
+                            ThemeSwatchButton(
+                                theme: theme,
+                                isSelected: settings.theme == theme,
+                                onSelect: { settings.theme = theme }
+                            )
+                        }
+                    }
                 }
+                
+                Divider().padding(.vertical, 2)
+                
+                Toggle("Centered popup window", isOn: $settings.usePopupMode)
+                    .toggleStyle(.checkbox)
+                
+                Text("Opens as a centered window instead of dropping from the menu bar. Takes effect on next toggle.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
                 
                 Divider()
                 
@@ -166,6 +186,66 @@ struct SettingsView: View {
         }
         .scrollIndicators(.hidden)
         .frame(width: 460, height: 580)
+    }
+}
+
+// MARK: - Theme Swatch Button
+
+struct ThemeSwatchButton: View {
+    let theme: AppTheme
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 5) {
+                ZStack(alignment: .bottomTrailing) {
+                    // Color swatch — shows the theme palette in miniature
+                    HStack(spacing: 0) {
+                        Rectangle()
+                            .fill(theme.mainBg)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        Rectangle()
+                            .fill(theme.panelBg)
+                            .frame(width: 14)
+                        Rectangle()
+                            .fill(theme.cardBgNormal)
+                            .frame(width: 14)
+                    }
+                    .frame(height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(
+                                isSelected ? Color.accentColor : Color.white.opacity(isHovering ? 0.15 : 0.06),
+                                lineWidth: isSelected ? 1.5 : 1
+                            )
+                    )
+
+                    // Check mark badge when selected
+                    if isSelected {
+                        ZStack {
+                            Circle()
+                                .fill(Color.accentColor)
+                                .frame(width: 16, height: 16)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        .offset(x: -4, y: -4)
+                    }
+                }
+
+                Text(theme.displayName)
+                    .font(.system(size: 9, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
     }
 }
 
