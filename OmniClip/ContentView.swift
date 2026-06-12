@@ -293,9 +293,9 @@ struct ContentView: View {
 // Notifications
 extension Notification.Name {
     static let dismissOmniClip = Notification.Name("dismissOmniClip")
-    static let openOmniClipSettings = Notification.Name("openOmniClipSettings")
-    static let openNotesWindow = Notification.Name("openNotesWindow")
     static let showAddClipPanel = Notification.Name("showAddClipPanel")
+    static let addPlainNote = Notification.Name("addPlainNote")
+    static let addFormNote = Notification.Name("addFormNote")
 }
 
 // MARK: - Titlebar Toolbar View (embedded in titlebar accessory)
@@ -304,110 +304,185 @@ struct TitlebarToolbarView: View {
     @ObservedObject var toolbarState: ToolbarState
     @ObservedObject var clipboardManager: ClipboardManager
     @ObservedObject var appSettings: AppSettings
-    
+    @EnvironmentObject var navigation: NavigationState
+
     var body: some View {
         HStack(spacing: 6) {
-            // Search field
-            SearchField(text: $toolbarState.searchText, isFocused: $toolbarState.searchFieldFocused)
-                .frame(maxWidth: .infinity)
-            
-            // "All" pill — always first
-            Button(action: { toolbarState.typeFilter = "All" }) {
-                Text("All")
-                    .font(.system(size: 10, weight: toolbarState.typeFilter == "All" ? .semibold : .regular))
-                    .foregroundColor(toolbarState.typeFilter == "All" ? .primary : .secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(toolbarState.typeFilter == "All" ? Color.secondary.opacity(0.2) : Color.clear)
-                    )
-            }
-            .buttonStyle(.plain)
-            
-            // Stack toggle — 2nd position
-            Button(action: { clipboardManager.toggleStackMode() }) {
-                Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 13))
-                    .foregroundColor(clipboardManager.isStackMode ? .accentColor : .secondary)
-            }
-            .buttonStyle(.plain)
-            .help(clipboardManager.isStackMode ? "Stop Stacking" : "Start Stacking")
-            
-            // Remaining type filter pills
-            ForEach(["Text", "Image", "URL", "File"], id: \.self) { option in
-                Button(action: { toolbarState.typeFilter = option }) {
-                    Text(option)
-                        .font(.system(size: 10, weight: toolbarState.typeFilter == option ? .semibold : .regular))
-                        .foregroundColor(toolbarState.typeFilter == option ? .primary : .secondary)
+            switch navigation.currentPage {
+
+            // ── Clipboard page toolbar ──────────────────────────────
+            case .clipboard:
+                // Search field
+                SearchField(text: $toolbarState.searchText, isFocused: $toolbarState.searchFieldFocused)
+                    .frame(maxWidth: .infinity)
+
+                // "All" pill
+                Button(action: { toolbarState.typeFilter = "All" }) {
+                    Text("All")
+                        .font(.system(size: 10, weight: toolbarState.typeFilter == "All" ? .semibold : .regular))
+                        .foregroundColor(toolbarState.typeFilter == "All" ? .primary : .secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(toolbarState.typeFilter == option ? Color.secondary.opacity(0.2) : Color.clear)
+                                .fill(toolbarState.typeFilter == "All" ? Color.secondary.opacity(0.2) : Color.clear)
                         )
                 }
                 .buttonStyle(.plain)
-            }
-            
-            Spacer()
-            
-            // Note button — opens notes window
-            Button(action: {
-                NotificationCenter.default.post(name: .openNotesWindow, object: nil)
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "note.text")
-                        .font(.system(size: 11))
-                    Text("Note")
-                        .font(.system(size: 10, weight: .medium))
+
+                // Stack toggle — 2nd position
+                Button(action: { clipboardManager.toggleStackMode() }) {
+                    Image(systemName: "square.stack.3d.up.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(clipboardManager.isStackMode ? .accentColor : .secondary)
                 }
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Color.white.opacity(0.08))
-                .cornerRadius(4)
-            }
-            .buttonStyle(.plain)
-            .help("Open Notes")
-            
-            // Add button — opens inline add form on right panel
-            Button(action: {
-                NotificationCenter.default.post(name: .showAddClipPanel, object: nil)
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text("Add")
-                        .font(.system(size: 10, weight: .semibold))
+                .buttonStyle(.plain)
+                .help(clipboardManager.isStackMode ? "Stop Stacking" : "Start Stacking")
+
+                // Type filter pills
+                ForEach(["Text", "Image", "URL", "File"], id: \.self) { option in
+                    Button(action: { toolbarState.typeFilter = option }) {
+                        Text(option)
+                            .font(.system(size: 10, weight: toolbarState.typeFilter == option ? .semibold : .regular))
+                            .foregroundColor(toolbarState.typeFilter == option ? .primary : .secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(toolbarState.typeFilter == option ? Color.secondary.opacity(0.2) : Color.clear)
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Color.accentColor)
-                .cornerRadius(4)
+
+                Spacer()
+
+                // Note button
+                Button(action: { navigation.openNotes() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "note.text")
+                            .font(.system(size: 11))
+                        Text("Note")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .help("Open Notes")
+
+                // Add button
+                Button(action: {
+                    NotificationCenter.default.post(name: .showAddClipPanel, object: nil)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Add")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.accentColor)
+                    .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .help("Manually add a clip")
+
+            // ── Notes page toolbar ──────────────────────────────────
+            case .notes:
+                // Back button
+                Button(action: { navigation.goBack() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Back")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+
+                Text("Notes")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                // New note menu (stays in toolbar for notes page)
+                Menu {
+                    Button(action: {
+                        NotificationCenter.default.post(name: .addPlainNote, object: nil)
+                    }) {
+                        Label("Plain Text Note", systemImage: "doc.text")
+                    }
+                    Button(action: {
+                        NotificationCenter.default.post(name: .addFormNote, object: nil)
+                    }) {
+                        Label("Form Note", systemImage: "list.bullet.clipboard")
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("New")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.accentColor)
+                    .cornerRadius(4)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 52, height: 22)
+
+            // ── Settings page toolbar ───────────────────────────────
+            case .settings:
+                Button(action: { navigation.goBack() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Back")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+
+                Text("Settings")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.primary)
+
+                Spacer()
             }
-            .buttonStyle(.plain)
-            .help("Manually add a clip")
-            
-            // Float toggle — keeps window above all apps
-            Button(action: {
-                appSettings.isFloating.toggle()
-            }) {
+
+            // ── Always-visible: Pin + Gear ──────────────────────────
+            Button(action: { appSettings.isFloating.toggle() }) {
                 Image(systemName: appSettings.isFloating ? "pin.circle.fill" : "pin.circle")
                     .font(.system(size: 14))
                     .foregroundColor(appSettings.isFloating ? .accentColor : .secondary)
             }
             .buttonStyle(.plain)
             .help(appSettings.isFloating ? "Stop floating" : "Keep window floating above other apps")
-            
-            // Settings button
-            Button(action: {
-                NotificationCenter.default.post(name: .openOmniClipSettings, object: nil)
-            }) {
+
+            Button(action: { navigation.openSettings() }) {
                 Image(systemName: "gear")
                     .font(.system(size: 13))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(navigation.currentPage == .settings ? .accentColor : .secondary)
             }
             .buttonStyle(.plain)
             .help("Settings")

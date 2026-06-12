@@ -35,6 +35,8 @@ swiftc -o "$MACOS_DIR/$APP_NAME" \
     OmniClip/ClipItem.swift \
     OmniClip/ClipboardManager.swift \
     OmniClip/ScreenshotWatcher.swift \
+    OmniClip/NavigationState.swift \
+    OmniClip/RootView.swift \
     OmniClip/ContentView.swift \
     OmniClip/ClipItemRow.swift \
     OmniClip/PreviewPanel.swift \

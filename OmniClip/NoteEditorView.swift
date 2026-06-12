@@ -9,7 +9,6 @@ struct NoteEditorView: View {
     @ObservedObject var appSettings: AppSettings
 
     @State private var editingTitle: String = ""
-    @State private var isEditingTitle: Bool = false
     @State private var plainText: String = ""
     @State private var newFieldValue: String = ""
     @State private var newFieldLabel: String = ""
@@ -24,12 +23,10 @@ struct NoteEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             header
 
             Divider().opacity(0.3)
 
-            // Body
             switch note.content {
             case .plainText:
                 plainTextBody
@@ -45,9 +42,12 @@ struct NoteEditorView: View {
     private func syncState() {
         editingTitle = note.title
         if case .plainText(let t) = note.content { plainText = t }
+        newFieldValue = ""
+        newFieldLabel = ""
+        editingItemID = nil
     }
 
-    // MARK: - Header
+    // MARK: - Header (always-editable title)
 
     private var header: some View {
         HStack(alignment: .center, spacing: 10) {
@@ -56,24 +56,22 @@ struct NoteEditorView: View {
                 .foregroundColor(.secondary)
 
             VStack(alignment: .leading, spacing: 2) {
-                if isEditingTitle {
-                    TextField("Title", text: $editingTitle, onCommit: {
-                        noteManager.updateTitle(id: note.id, title: editingTitle)
-                        isEditingTitle = false
-                    })
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .onExitCommand { isEditingTitle = false }
-                } else {
-                    Text(note.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
-                        .onTapGesture(count: 2) {
-                            editingTitle = note.title
-                            isEditingTitle = true
-                        }
-                        .help("Double-click to rename")
+                // Title is always a text field — no double-click needed
+                TextField("Untitled", text: $editingTitle, onCommit: {
+                    let trimmed = editingTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        noteManager.updateTitle(id: note.id, title: trimmed)
+                    }
+                })
+                .textFieldStyle(.plain)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.primary)
+                .onChange(of: editingTitle) { newVal in
+                    // Debounce: save after a short pause (via commit is also fine)
+                    let trimmed = newVal.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        noteManager.updateTitle(id: note.id, title: trimmed)
+                    }
                 }
 
                 Text("Modified \(Self.dateFormatter.string(from: note.modifiedAt))")
@@ -83,7 +81,6 @@ struct NoteEditorView: View {
 
             Spacer()
 
-            // Type badge
             Text(note.content.typeName)
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundColor(.secondary)
@@ -111,7 +108,7 @@ struct NoteEditorView: View {
     private func formBody(items: [FormItem]) -> some View {
         VStack(spacing: 0) {
             ScrollView {
-                LazyVStack(spacing: 6) {
+                LazyVStack(spacing: 5) {
                     ForEach(items) { item in
                         FormItemRow(
                             item: item,
@@ -133,6 +130,23 @@ struct NoteEditorView: View {
                             }
                         )
                     }
+
+                    if items.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "list.bullet.clipboard")
+                                .font(.system(size: 28))
+                                .foregroundColor(.secondary.opacity(0.3))
+                            Text("No fields yet")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Text("Add fields below — click the copy button on any field to copy it")
+                                .font(.system(size: 10))
+                                .foregroundColor(Color.secondary.opacity(0.6))
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 40)
+                    }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
@@ -141,7 +155,6 @@ struct NoteEditorView: View {
 
             Divider().opacity(0.3)
 
-            // Add field row
             addFieldBar(noteID: note.id)
         }
     }
@@ -184,6 +197,7 @@ struct NoteEditorView: View {
             }
             .buttonStyle(.plain)
             .disabled(newFieldValue.trimmingCharacters(in: .whitespaces).isEmpty)
+            .keyboardShortcut(.return, modifiers: .command)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -199,7 +213,7 @@ struct NoteEditorView: View {
     }
 }
 
-// MARK: - Form Item Row
+// MARK: - Form Item Row (click anywhere to copy)
 
 struct FormItemRow: View {
     let item: FormItem
@@ -230,75 +244,79 @@ struct FormItemRow: View {
     }
 
     private var displayRow: some View {
-        HStack(spacing: 10) {
-            // Copy button
-            Button(action: {
-                onCopy()
-                justCopied = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { justCopied = false }
-            }) {
-                Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(justCopied ? .green : .accentColor)
-                    .frame(width: 26, height: 26)
-                    .background(Color.accentColor.opacity(justCopied ? 0.15 : 0.10))
-                    .cornerRadius(4)
-                    .animation(.easeInOut(duration: 0.2), value: justCopied)
-            }
-            .buttonStyle(.plain)
-            .help("Copy to clipboard")
-
-            // Label + value
-            VStack(alignment: .leading, spacing: 1) {
-                if !item.label.isEmpty {
-                    Text(item.label)
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
+        Button(action: {
+            // Click anywhere on the row to copy
+            onCopy()
+            justCopied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { justCopied = false }
+        }) {
+            HStack(spacing: 10) {
+                // Copy icon — shows checkmark when just copied
+                ZStack {
+                    Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(justCopied ? .green : .accentColor)
                 }
-                Text(item.value)
-                    .font(.system(size: 12))
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-            }
+                .frame(width: 26, height: 26)
+                .background(Color.accentColor.opacity(justCopied ? 0.15 : 0.10))
+                .cornerRadius(4)
+                .animation(.easeInOut(duration: 0.2), value: justCopied)
 
-            Spacer()
-
-            // Hover actions
-            if isHovering {
-                HStack(spacing: 4) {
-                    Button(action: {
-                        editValue = item.value
-                        editLabel = item.label
-                        onEdit()
-                    }) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 10))
+                // Label + value
+                VStack(alignment: .leading, spacing: 1) {
+                    if !item.label.isEmpty {
+                        Text(item.label)
+                            .font(.system(size: 9, weight: .semibold))
                             .foregroundColor(.secondary)
-                            .frame(width: 22, height: 22)
-                            .background(Color.white.opacity(0.07))
-                            .cornerRadius(3)
+                            .textCase(.uppercase)
                     }
-                    .buttonStyle(.plain)
+                    Text(item.value)
+                        .font(.system(size: 12))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                }
 
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
-                            .frame(width: 22, height: 22)
-                            .background(Color.white.opacity(0.07))
-                            .cornerRadius(3)
+                Spacer()
+
+                // Edit / delete on hover
+                if isHovering {
+                    HStack(spacing: 4) {
+                        Button(action: {
+                            editValue = item.value
+                            editLabel = item.label
+                            onEdit()
+                        }) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                                .frame(width: 22, height: 22)
+                                .background(Color.white.opacity(0.07))
+                                .cornerRadius(3)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button(action: onDelete) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                                .frame(width: 22, height: 22)
+                                .background(Color.white.opacity(0.07))
+                                .cornerRadius(3)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(justCopied ? Color.accentColor.opacity(0.08) : (isHovering ? theme.cardBgHover : theme.cardBgNormal))
+            )
+            .animation(.easeInOut(duration: 0.2), value: justCopied)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 5)
-                .fill(isHovering ? theme.cardBgHover : theme.cardBgNormal)
-        )
+        .buttonStyle(.plain)
         .onHover { isHovering = $0 }
     }
 

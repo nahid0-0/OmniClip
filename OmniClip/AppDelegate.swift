@@ -13,8 +13,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     private var panel: NSPanel!
-    private var settingsWindow: NSWindow?
-    private var notesWindow: NSWindow?
     private var clipboardManager: ClipboardManager!
     private var noteManager: NoteManager!
     private var appSettings: AppSettings!
@@ -27,9 +25,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var stackModeObserver: AnyCancellable?
     private var floatingObserver: AnyCancellable?
     
-    // Shared with ContentView
+    // Shared with ContentView and toolbar
     let keyboardActions = KeyboardActionPublisher()
     let toolbarState = ToolbarState()
+    let navigation = NavigationState()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         appSettings = AppSettings()
@@ -78,6 +77,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             keyboardActions: keyboardActions,
             toolbarState: toolbarState
         )
+        .environmentObject(navigation)
         
         // Create popover (menu bar dropdown mode)
         popover = NSPopover()
@@ -86,8 +86,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         popover.contentViewController = NSHostingController(rootView: popoverContentView)
         popover.appearance = NSAppearance(named: .darkAqua)
         
-        let panelContentView = ContentView(
+        let panelContentView = RootView(
+            navigation: navigation,
             clipboardManager: clipboardManager,
+            noteManager: noteManager,
             appSettings: appSettings,
             keyboardActions: keyboardActions,
             toolbarState: toolbarState
@@ -125,9 +127,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         
-        // Embed toolbar in the titlebar row
+        // Embed navigation-aware toolbar in the titlebar row
         let titlebarAccessory = NSTitlebarAccessoryViewController()
-        let toolbarView = TitlebarToolbarView(toolbarState: toolbarState, clipboardManager: clipboardManager, appSettings: appSettings)
+        let toolbarView = TitlebarToolbarView(
+            toolbarState: toolbarState,
+            clipboardManager: clipboardManager,
+            appSettings: appSettings
+        )
+        .environmentObject(navigation)
         titlebarAccessory.view = NSHostingView(rootView: toolbarView)
         titlebarAccessory.layoutAttribute = .bottom
         panel.addTitlebarAccessoryViewController(titlebarAccessory)
@@ -146,22 +153,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self,
             selector: #selector(handleDismiss),
             name: .dismissOmniClip,
-            object: nil
-        )
-        
-        // Listen for settings notification from ContentView toolbar
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(openSettings),
-            name: .openOmniClipSettings,
-            object: nil
-        )
-        
-        // Listen for notes notification
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(openNotes),
-            name: .openNotesWindow,
             object: nil
         )
     }
@@ -421,66 +412,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let button = statusItem.button {
             menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 5), in: button)
         }
-    }
-    
-    @objc func openSettings() {
-        if popover.isShown {
-            popover.performClose(nil)
-        }
-        panel.orderOut(nil)
-        
-        if settingsWindow == nil {
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 460, height: 580),
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            window.isReleasedWhenClosed = false
-            window.title = "Pasteboard Settings"
-            window.center()
-            window.contentView = NSHostingView(rootView: SettingsView(settings: appSettings))
-            NotificationCenter.default.addObserver(
-                forName: NSWindow.willCloseNotification,
-                object: window,
-                queue: .main
-            ) { [weak self] _ in
-                self?.settingsWindow = nil
-            }
-            settingsWindow = window
-        }
-        
-        settingsWindow?.center()
-        settingsWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-    
-    @objc func openNotes() {
-        if notesWindow == nil {
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 760, height: 520),
-                styleMask: [.titled, .closable, .resizable, .miniaturizable],
-                backing: .buffered,
-                defer: false
-            )
-            window.isReleasedWhenClosed = false
-            window.title = "Notes"
-            window.appearance = NSAppearance(named: .darkAqua)
-            window.center()
-            window.minSize = NSSize(width: 600, height: 400)
-            let notesView = NotesView(noteManager: noteManager, appSettings: appSettings)
-            window.contentView = NSHostingView(rootView: notesView)
-            NotificationCenter.default.addObserver(
-                forName: NSWindow.willCloseNotification,
-                object: window,
-                queue: .main
-            ) { [weak self] _ in
-                self?.notesWindow = nil
-            }
-            notesWindow = window
-        }
-        notesWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
     
     @objc func quitApp() {
