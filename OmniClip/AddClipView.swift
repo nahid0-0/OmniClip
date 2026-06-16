@@ -41,7 +41,7 @@ struct AddClipView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(appSettings.theme.panelBg)
+            .background(appSettings.theme.mainBg)
 
             Divider().opacity(0.3)
 

@@ -5,7 +5,9 @@ struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     
     var body: some View {
-        ScrollView {
+        VStack(spacing: 0) {
+            Divider()
+            ScrollView {
         VStack(alignment: .leading, spacing: 20) {
             // Appearance section
             VStack(alignment: .leading, spacing: 12) {
@@ -184,8 +186,11 @@ struct SettingsView: View {
             }
             .padding(20)
         }
-        .scrollIndicators(.hidden)
-        .frame(width: 460, height: 580)
+        .scrollIndicators(.never)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(settings.theme.mainBg)
+        .preferredColorScheme(.dark)
     }
 }
 

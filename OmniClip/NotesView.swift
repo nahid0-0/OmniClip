@@ -55,7 +55,7 @@ struct NotesView: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
-                .background(appSettings.theme.panelBg)
+                .background(appSettings.theme.mainBg)
 
                 Divider().opacity(0.3)
 
@@ -166,7 +166,13 @@ struct NotesView: View {
     }
 }
 
-// MARK: - Note Item Row — fixed height, title only
+// MARK: - Note Item Row — title + detail strip
+
+private let relativeFormatter: RelativeDateTimeFormatter = {
+    let f = RelativeDateTimeFormatter()
+    f.unitsStyle = .abbreviated
+    return f
+}()
 
 struct NoteItemRow: View {
     let note: Note
@@ -177,32 +183,69 @@ struct NoteItemRow: View {
 
     @State private var isHovering = false
 
+    private var detailCount: String {
+        switch note.content {
+        case .plainText(let t):
+            let chars = t.count
+            return "\(chars) chars"
+        case .form(let items):
+            return "\(items.count) field\(items.count == 1 ? "" : "s")"
+        }
+    }
+
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 8) {
                 // Type icon
                 Image(systemName: note.content.typeIcon)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .frame(width: 16)
+                    .font(.system(size: 14))
+                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                    .frame(width: 18)
 
-                // Title — only field shown for fixed card height
-                Text(note.title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                VStack(alignment: .leading, spacing: 3) {
+                    // Title
+                    Text(note.title)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    // Detail strip: time · type · count
+                    HStack(spacing: 6) {
+                        // Relative time
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 8))
+                            Text(relativeFormatter.localizedString(for: note.modifiedAt, relativeTo: Date()))
+                                .font(.system(size: 9))
+                        }
+                        .foregroundColor(.secondary.opacity(0.7))
+
+                        Text("·")
+                            .font(.system(size: 8))
+                            .foregroundColor(.secondary.opacity(0.4))
+
+                        // Type badge
+                        HStack(spacing: 2) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 8))
+                            Text(note.content.typeName)
+                                .font(.system(size: 9))
+                        }
+                        .foregroundColor(.secondary.opacity(0.7))
+
+                        Text("·")
+                            .font(.system(size: 8))
+                            .foregroundColor(.secondary.opacity(0.4))
+
+                        // Count
+                        Text(detailCount)
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary.opacity(0.7))
+                    }
+                }
 
                 Spacer(minLength: 4)
-
-                // Type badge
-                Text(note.content.typeName)
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(Color.white.opacity(0.07))
-                    .cornerRadius(3)
 
                 // Hover delete
                 if isHovering {
@@ -214,11 +257,11 @@ struct NoteItemRow: View {
                     .buttonStyle(.plain)
                 }
             }
-            .frame(height: 36)   // ← Fixed height
             .padding(.horizontal, 10)
+            .padding(.vertical, 8)
             .background(
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 5)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(isSelected ? theme.cardBgSelected : (isHovering ? theme.cardBgHover : theme.cardBgNormal))
                     if isSelected {
                         Rectangle()
@@ -226,7 +269,7 @@ struct NoteItemRow: View {
                             .frame(width: 3)
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 5))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             )
             .contentShape(Rectangle())
         }

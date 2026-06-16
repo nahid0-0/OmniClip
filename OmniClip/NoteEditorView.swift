@@ -91,7 +91,7 @@ struct NoteEditorView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(appSettings.theme.panelBg)
+        .background(appSettings.theme.mainBg)
     }
 
     // MARK: - Plain Text Body

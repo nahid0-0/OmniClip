@@ -382,13 +382,17 @@ struct TitlebarToolbarView: View {
                         Image(systemName: "plus")
                             .font(.system(size: 11, weight: .semibold))
                         Text("Add")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 10, weight: .medium))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color.accentColor)
+                    .background(Color.white.opacity(0.08))
                     .cornerRadius(4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
                 .help("Manually add a clip")

@@ -324,8 +324,9 @@ struct PreviewPanel: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(appSettings.theme.panelBg)
+        .padding(.top, 11)
+        .padding(.bottom, 8)
+        .background(appSettings.theme.mainBg)
     }
     
     // MARK: - Content Area
