@@ -25,10 +25,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var stackModeObserver: AnyCancellable?
     private var floatingObserver: AnyCancellable?
     
-    // Shared with ContentView and toolbar
+    // Shared with panel's ContentView and titlebar toolbar
     let keyboardActions = KeyboardActionPublisher()
     let toolbarState = ToolbarState()
     let navigation = NavigationState()
+
+    // Separate state for the popover — independent navigation from the panel
+    let popoverNavigation = NavigationState()
+    let popoverToolbarState: ToolbarState = {
+        let s = ToolbarState()
+        s.isPopoverMode = true   // always in popover mode — toolbar is inline
+        return s
+    }()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         appSettings = AppSettings()
@@ -71,15 +79,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         
-        let popoverContentView = ContentView(
+        // Create popover (menu bar dropdown mode) — uses its own navigation & toolbar state
+        // so popover and panel page selections are fully independent.
+        let popoverContentView = RootView(
+            navigation: popoverNavigation,
             clipboardManager: clipboardManager,
+            noteManager: noteManager,
             appSettings: appSettings,
             keyboardActions: keyboardActions,
-            toolbarState: toolbarState
+            toolbarState: popoverToolbarState
         )
-        .environmentObject(navigation)
-        
-        // Create popover (menu bar dropdown mode)
         popover = NSPopover()
         popover.contentSize = NSSize(width: 900, height: 600)
         popover.behavior = .transient
@@ -363,7 +372,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             popover.performClose(nil)
         } else {
             panel.orderOut(nil)
-            toolbarState.isPopoverMode = true
             if let button = statusItem.button {
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             }

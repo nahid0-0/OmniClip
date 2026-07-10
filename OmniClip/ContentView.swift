@@ -79,15 +79,6 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Show inline toolbar in popover mode (no titlebar accessory)
-            if toolbarState.isPopoverMode {
-                TitlebarToolbarView(toolbarState: toolbarState, clipboardManager: clipboardManager, appSettings: appSettings)
-                    .padding(.horizontal, 6)
-                    .frame(height: 36)
-                    .background(appSettings.theme.mainBg)
-                Divider()
-            }
-            
             HStack(spacing: 0) {
             // Left side: List of clips
             VStack(spacing: 0) {

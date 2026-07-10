@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The root view of the main NSPanel.
-/// Switches between Clipboard, Notes and Settings pages
-/// while keeping the same panel/toolbar structure.
+/// The root view shared by both the NSPanel and the NSPopover.
+/// It owns the inline toolbar (shown in popover mode) and switches pages.
 struct RootView: View {
     @ObservedObject var navigation: NavigationState
     @ObservedObject var clipboardManager: ClipboardManager
@@ -12,31 +11,50 @@ struct RootView: View {
     @ObservedObject var toolbarState: ToolbarState
 
     var body: some View {
-        ZStack {
-            switch navigation.currentPage {
-            case .clipboard:
-                ContentView(
+        VStack(spacing: 0) {
+            // ── Inline toolbar (popover only — panel uses NSTitlebarAccessoryViewController) ──
+            if toolbarState.isPopoverMode {
+                TitlebarToolbarView(
+                    toolbarState: toolbarState,
                     clipboardManager: clipboardManager,
-                    appSettings: appSettings,
-                    keyboardActions: keyboardActions,
-                    toolbarState: toolbarState
-                )
-                .transition(.opacity)
-
-            case .notes:
-                NotesView(
-                    noteManager: noteManager,
                     appSettings: appSettings
                 )
-                .transition(.opacity)
+                .padding(.horizontal, 6)
+                .frame(height: 36)
+                .background(appSettings.theme.mainBg)
 
-            case .settings:
-                SettingsView(settings: appSettings)
-                    .transition(.opacity)
+                Divider().opacity(0.4)
             }
+
+            // ── Page content ──────────────────────────────────────────
+            ZStack {
+                switch navigation.currentPage {
+                case .clipboard:
+                    ContentView(
+                        clipboardManager: clipboardManager,
+                        appSettings: appSettings,
+                        keyboardActions: keyboardActions,
+                        toolbarState: toolbarState
+                    )
+                    .transition(.opacity)
+
+                case .notes:
+                    NotesView(
+                        noteManager: noteManager,
+                        appSettings: appSettings
+                    )
+                    .transition(.opacity)
+
+                case .settings:
+                    SettingsView(settings: appSettings)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.15), value: navigation.currentPage)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .animation(.easeInOut(duration: 0.15), value: navigation.currentPage)
-        // Pass navigation as environment so child views can navigate
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Provide navigation to all child views (TitlebarToolbarView uses @EnvironmentObject)
         .environmentObject(navigation)
     }
 }

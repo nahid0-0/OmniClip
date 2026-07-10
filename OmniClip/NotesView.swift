@@ -133,6 +133,10 @@ struct NotesView: View {
                         noteManager: noteManager,
                         appSettings: appSettings
                     )
+                    // Force SwiftUI to destroy & recreate this view (and all its @State)
+                    // when the selected note changes. Without this, editingTitle persists
+                    // from the previous note and looks like a shared "app bar" title.
+                    .id(note.id)
                 } else {
                     VStack(spacing: 12) {
                         Image(systemName: "note.text")

@@ -13,6 +13,7 @@ struct NoteEditorView: View {
     @State private var newFieldValue: String = ""
     @State private var newFieldLabel: String = ""
     @State private var editingItemID: UUID? = nil
+    @State private var justCopiedText: Bool = false
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -36,7 +37,6 @@ struct NoteEditorView: View {
         }
         .background(appSettings.theme.mainBg)
         .onAppear { syncState() }
-        .onChange(of: note.id) { _ in syncState() }
     }
 
     private func syncState() {
@@ -56,22 +56,20 @@ struct NoteEditorView: View {
                 .foregroundColor(.secondary)
 
             VStack(alignment: .leading, spacing: 2) {
-                // Title is always a text field — no double-click needed
+                // Title field — updates the left panel in real-time on every keystroke.
+                // Using note.id captured at call time is safe: the ID only changes when
+                // onChange(of: note.id) fires, which resets editingTitle via syncState().
                 TextField("Untitled", text: $editingTitle, onCommit: {
-                    let trimmed = editingTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty {
-                        noteManager.updateTitle(id: note.id, title: trimmed)
-                    }
+                    saveTitle()
                 })
                 .textFieldStyle(.plain)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.primary)
                 .onChange(of: editingTitle) { newVal in
-                    // Debounce: save after a short pause (via commit is also fine)
                     let trimmed = newVal.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty {
-                        noteManager.updateTitle(id: note.id, title: trimmed)
-                    }
+                    guard !trimmed.isEmpty else { return }
+                    // note.id is always the CURRENT note here — safe to use directly
+                    noteManager.updateTitle(id: note.id, title: trimmed)
                 }
 
                 Text("Modified \(Self.dateFormatter.string(from: note.modifiedAt))")
@@ -80,6 +78,27 @@ struct NoteEditorView: View {
             }
 
             Spacer()
+
+            // Copy button — plain text notes
+            if case .plainText = note.content {
+                Button(action: copyPlainText) {
+                    HStack(spacing: 4) {
+                        Image(systemName: justCopiedText ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 10, weight: .medium))
+                        Text(justCopiedText ? "Copied" : "Copy")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(justCopiedText ? .green : .secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(justCopiedText ? Color.green.opacity(0.12) : Color.white.opacity(0.07))
+                    )
+                }
+                .buttonStyle(.plain)
+                .animation(.easeInOut(duration: 0.2), value: justCopiedText)
+            }
 
             Text(note.content.typeName)
                 .font(.system(size: 9, weight: .semibold))
@@ -92,6 +111,25 @@ struct NoteEditorView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(appSettings.theme.mainBg)
+    }
+
+    private func saveTitle() {
+        let trimmed = editingTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            noteManager.updateTitle(id: note.id, title: trimmed)
+        } else {
+            // Restore stored title if field was cleared
+            editingTitle = note.title
+        }
+    }
+
+    private func copyPlainText() {
+        let text: String
+        if case .plainText(let t) = note.content { text = t } else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        justCopiedText = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { justCopiedText = false }
     }
 
     // MARK: - Plain Text Body
@@ -401,7 +439,12 @@ struct NoteTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let tv = scrollView.documentView as! NSTextView
         applyTheme(tv)
-        if tv.string != text { tv.string = text }
+        // Only replace the text when the note changes externally (e.g. note selection changed),
+        // NOT when the user is actively typing (which would clobber the cursor position).
+        guard !context.coordinator.isEditing else { return }
+        if tv.string != text {
+            tv.string = text
+        }
     }
 
     private func applyTheme(_ tv: NSTextView) {
@@ -413,10 +456,23 @@ struct NoteTextEditor: NSViewRepresentable {
 
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: NoteTextEditor
+        /// True while the user is actively editing — prevents updateNSView from resetting text.
+        var isEditing: Bool = false
+
         init(_ p: NoteTextEditor) { parent = p }
+
+        func textDidBeginEditing(_ notification: Notification) {
+            isEditing = true
+        }
+
         func textDidChange(_ n: Notification) {
             guard let tv = n.object as? NSTextView else { return }
+            isEditing = true
             parent.text = tv.string
+        }
+
+        func textDidEndEditing(_ notification: Notification) {
+            isEditing = false
         }
     }
 }
