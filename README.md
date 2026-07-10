@@ -10,99 +10,49 @@
 [![Swift](https://img.shields.io/badge/Swift-5.9-F05138?style=for-the-badge&logo=swift&logoColor=white)](https://swift.org)
 [![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-8B5CF6?style=for-the-badge)](LICENSE)
 
-[**Download**](#-download) · [**Features**](#-features) · [**Install**](#-installation) · [**Build**](#%EF%B8%8F-building-from-source) · [**Permissions**](#-permissions)
+</div>
 
 ---
 
-## 📥 Download
+## Features
 
-### [⬇ Download Pasteboard.app](https://github.com/nahid0-0/Pasteboard/raw/main/build/Pasteboard.app.zip)
-
-`Apple Silicon` · `macOS 13.0 Ventura or later`
-
----
-
-## ✨ Features
-
-| | Feature | Description |
-|---|---|---|
-| 📋 | **Clipboard History** | Automatically tracks everything you copy |
-| 🖼️ | **Screenshot Detection** | Captures screenshots and adds them to history |
-| ⚡ | **Menu Bar Access** | Quick access via menu bar icon or global hotkey |
-| 🔍 | **Search & Filter** | Find clips by type — Text, Image, URL, or File |
-| 🔎 | **Rich Previews** | Preview clips with syntax highlighting |
-| ⌨️ | **Keyboard First** | Configurable global hotkey & keyboard navigation |
-| 📌 | **Pin Important Clips** | Keep your most-used clips at the top |
-| 🗑️ | **Easy Management** | Delete individual items or clear all at once |
-| 💾 | **Persistent Storage** | Your history survives app restarts |
-| 🎨 | **Native Interface** | Clean, native macOS design that feels right at home |
+| Feature | Description |
+|---|---|
+| **Clipboard History** | Automatically tracks text, images, URLs, and files |
+| **Screenshot Detection** | Captures screenshots directly into your history |
+| **Notes** | Create plain text or form notes — copy individual fields with one click |
+| **Stack Mode** | Batch-collect multiple copies into a single stack item |
+| **Rich Previews** | Preview clips with syntax highlighting for code |
+| **Search & Filter** | Filter by type — Text, Image, URL, or File — and search by content |
+| **Keyboard First** | Configurable global hotkey, arrow key navigation, one-key copy |
+| **Pin Clips** | Pin frequently used clips so they always stay at the top |
+| **Persistent Storage** | History and notes survive app restarts |
+| **Themes** | Multiple dark themes to match your setup |
 
 ---
 
-## 🚀 Installation
-
-1. **Download** the app using the link above
-2. **Unzip** if downloaded as `.zip`
-3. **Move** `Pasteboard.app` to your `/Applications` folder
-4. **Launch** — right-click and select "Open" (first time only, to bypass Gatekeeper)
-5. **Done** — the app appears in your menu bar ✨
-
----
-
-## 🎯 Usage
+## Usage
 
 | Action | How |
 |---|---|
-| Open clipboard history | Click the clipboard icon in the menu bar |
-| Quick access | Use the global hotkey (configurable in Settings) |
-| Copy an item | Click any item in the history |
-| Filter by type | Use filter pills — Text, Image, URL, File |
-| Search clips | Type in the search bar |
-| Configure | Open Settings from the app |
+| Open | Click the menu bar icon, or press your global hotkey |
+| Copy a clip | Click any item — or press Return when selected |
+| Filter | Use the type pills at the top — All, Text, Image, URL, File |
+| Search | Type in the search bar (Shift+Left to focus) |
+| Navigate | Arrow keys move through the list |
+| Stack mode | Enable via the toolbar to batch-collect copies |
+| Notes | Navigate to Notes via the toolbar |
+| Settings | Gear icon in the top-right corner |
 
 ---
 
-## 🛠️ Building from Source
+## Permissions
 
-<details>
-<summary><b>Requirements</b></summary>
-
-- macOS 13.0 or later
-- Xcode Command Line Tools
-- Swift compiler
-
-</details>
-
-```bash
-# Clone the repository
-git clone https://github.com/nahid0-0/Pasteboard.git
-cd Pasteboard
-
-# Build
-./build.sh
-
-# Launch
-open build/Pasteboard.app
-```
-
----
-
-## 🔐 Permissions
-
-| Permission | Purpose | Required? |
+| Permission | Purpose | Required |
 |---|---|---|
-| **Accessibility** | Capture global hotkeys | ✅ Required |
-| **Screen Recording** | Detect and manage screenshots | ⚙️ Optional |
+| **Accessibility** | Register and receive global hotkeys | Yes |
+| **Screen Recording** | Detect screenshots via CGWindowList | Optional |
 
 ---
-
-**Made with ❤️ by [Nahid Rahman](https://github.com/nahid0-0)**
 
 Copyright © 2026 Nahid Rahman. All rights reserved.
-
-<br>
-
-[![Issues](https://img.shields.io/github/issues/nahid0-0/Pasteboard?style=flat-square&color=8B5CF6)](https://github.com/nahid0-0/Pasteboard/issues)
-[![Pull Requests](https://img.shields.io/github/issues-pr/nahid0-0/Pasteboard?style=flat-square&color=06B6D4)](https://github.com/nahid0-0/Pasteboard/pulls)
-
-</div>
