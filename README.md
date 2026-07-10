@@ -12,7 +12,7 @@
 
 ---
 
-<img src="Screenshots/preview.webp" alt="Pasteboard preview" width="900"/>
+<img src="Screenshots/preview.webp" alt="Pasteboard preview" width="600"/>
 
 ---
 
