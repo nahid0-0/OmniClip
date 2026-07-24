@@ -4,13 +4,15 @@ import Foundation
 
 struct FormItem: Identifiable, Codable, Equatable {
     var id: UUID
-    var value: String   // The text that gets copied (e.g. "John Doe")
-    var label: String   // Optional display label (e.g. "Full Name") — may be empty
+    var value: String        // The text that gets copied (e.g. "John Doe") — unused when imageData is set
+    var label: String        // Optional display label (e.g. "Full Name") — may be empty
+    var imageData: Data?     // When present, this field holds an image instead of text
 
-    init(id: UUID = UUID(), value: String, label: String = "") {
+    init(id: UUID = UUID(), value: String, label: String = "", imageData: Data? = nil) {
         self.id = id
         self.value = value
         self.label = label
+        self.imageData = imageData
     }
 }
 
@@ -19,10 +21,11 @@ struct FormItem: Identifiable, Codable, Equatable {
 enum NoteContent: Codable, Equatable {
     case plainText(String)
     case form([FormItem])
+    case image(Data)
 
     // Custom Codable because Swift enums with associated values need it
     private enum CodingKeys: String, CodingKey {
-        case type, text, items
+        case type, text, items, imageData
     }
 
     func encode(to encoder: Encoder) throws {
@@ -34,6 +37,9 @@ enum NoteContent: Codable, Equatable {
         case .form(let items):
             try container.encode("form", forKey: .type)
             try container.encode(items, forKey: .items)
+        case .image(let data):
+            try container.encode("image", forKey: .type)
+            try container.encode(data, forKey: .imageData)
         }
     }
 
@@ -44,6 +50,9 @@ enum NoteContent: Codable, Equatable {
         case "form":
             let items = try container.decode([FormItem].self, forKey: .items)
             self = .form(items)
+        case "image":
+            let data = try container.decodeIfPresent(Data.self, forKey: .imageData) ?? Data()
+            self = .image(data)
         default:
             let text = try container.decodeIfPresent(String.self, forKey: .text) ?? ""
             self = .plainText(text)
@@ -54,6 +63,7 @@ enum NoteContent: Codable, Equatable {
         switch self {
         case .plainText: return "Text"
         case .form:      return "Form"
+        case .image:     return "Image"
         }
     }
 
@@ -61,6 +71,7 @@ enum NoteContent: Codable, Equatable {
         switch self {
         case .plainText: return "doc.text"
         case .form:      return "list.bullet.clipboard"
+        case .image:     return "photo"
         }
     }
 }
@@ -93,7 +104,9 @@ struct Note: Identifiable, Codable, Equatable {
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
                        .components(separatedBy: .newlines).first ?? ""
         case .form(let items):
-            return items.map { $0.value }.joined(separator: " · ")
+            return items.map { $0.imageData != nil ? "🖼 Image" : $0.value }.joined(separator: " · ")
+        case .image:
+            return "Image"
         }
     }
 }

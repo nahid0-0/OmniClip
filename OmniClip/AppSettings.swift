@@ -103,6 +103,21 @@ enum AppTheme: String, CaseIterable, Identifiable {
 
     // MARK: AppKit colors (for NSTextView, ruler, etc.)
 
+    /// NSColor twin of `mainBg` — use this (not `nsEditorBg`) behind any NSTextView
+    /// that sits directly against SwiftUI chrome using `mainBg`, so the two don't
+    /// show a seam where they meet.
+    var nsMainBg: NSColor {
+        switch self {
+        case .spaceGray:   return NSColor(red: 26/255, green: 27/255, blue: 30/255, alpha: 1)
+        case .nordicNight: return NSColor(red: 15/255, green: 20/255, blue: 28/255, alpha: 1)
+        case .deepOcean:   return NSColor(red: 8/255,  green: 13/255, blue: 26/255, alpha: 1)
+        case .githubDark:  return NSColor(red: 13/255, green: 17/255, blue: 23/255, alpha: 1)
+        case .cursorPure:  return NSColor(red: 10/255, green: 10/255, blue: 10/255, alpha: 1)
+        case .cursorSlate: return NSColor(red: 11/255, green: 13/255, blue: 16/255, alpha: 1)
+        case .cyberBlack:  return NSColor(red: 12/255, green: 13/255, blue: 14/255, alpha: 1)
+        }
+    }
+
     var nsEditorBg: NSColor {
         switch self {
         case .spaceGray:   return NSColor(red: 22/255, green: 23/255, blue: 26/255, alpha: 1)

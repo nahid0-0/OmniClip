@@ -69,10 +69,10 @@ class NoteManager: ObservableObject {
 
     // MARK: - Form helpers
 
-    func addFormItem(to noteID: UUID, value: String = "", label: String = "") {
+    func addFormItem(to noteID: UUID, value: String = "", label: String = "", imageData: Data? = nil) {
         guard let idx = notes.firstIndex(where: { $0.id == noteID }),
               case .form(var items) = notes[idx].content else { return }
-        items.append(FormItem(value: value, label: label))
+        items.append(FormItem(value: value, label: label, imageData: imageData))
         notes[idx].content = .form(items)
         notes[idx].modifiedAt = Date()
         save()
@@ -93,6 +93,16 @@ class NoteManager: ObservableObject {
               let itemIdx = items.firstIndex(where: { $0.id == itemID }) else { return }
         items[itemIdx].value = value
         items[itemIdx].label = label
+        notes[idx].content = .form(items)
+        notes[idx].modifiedAt = Date()
+        save()
+    }
+
+    func updateFormItemImage(in noteID: UUID, itemID: UUID, imageData: Data?) {
+        guard let idx = notes.firstIndex(where: { $0.id == noteID }),
+              case .form(var items) = notes[idx].content,
+              let itemIdx = items.firstIndex(where: { $0.id == itemID }) else { return }
+        items[itemIdx].imageData = imageData
         notes[idx].content = .form(items)
         notes[idx].modifiedAt = Date()
         save()

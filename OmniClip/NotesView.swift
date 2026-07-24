@@ -1,6 +1,20 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Scroll edge glow suppression (macOS 26 draws a soft glass gradient
+// at scroll edges by default; we want flat, minimal panels instead)
+
+extension View {
+    @ViewBuilder
+    func noScrollEdgeGlow() -> some View {
+        if #available(macOS 26.0, *) {
+            self.scrollEdgeEffectHidden(true, for: .all)
+        } else {
+            self
+        }
+    }
+}
+
 // MARK: - Notes Root View (in-app page)
 
 struct NotesView: View {
@@ -8,11 +22,11 @@ struct NotesView: View {
     @ObservedObject var appSettings: AppSettings
 
     @State private var selectedNoteID: UUID?
-    @State private var filterType: String = "All"   // All / Text / Form
+    @State private var filterType: String = "All"   // All / Text / Form / Image
     @State private var leftPanelWidth: CGFloat = 260
     @State private var dragStartWidth: CGFloat = 260
 
-    private let filterOptions = ["All", "Text", "Form"]
+    private let filterOptions = ["All", "Text", "Form", "Image"]
 
     var filteredNotes: [Note] {
         switch filterType {
@@ -21,6 +35,9 @@ struct NotesView: View {
         }
         case "Form": return noteManager.notes.filter {
             if case .form = $0.content { return true }; return false
+        }
+        case "Image": return noteManager.notes.filter {
+            if case .image = $0.content { return true }; return false
         }
         default: return noteManager.notes
         }
@@ -32,7 +49,9 @@ struct NotesView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 0) {
             // ── LEFT PANEL ──────────────────────────────────────────
             VStack(spacing: 0) {
                 // Filter strip
@@ -57,7 +76,7 @@ struct NotesView: View {
                 .padding(.vertical, 6)
                 .background(appSettings.theme.mainBg)
 
-                Divider().opacity(0.3)
+                Divider()
 
                 // Note list
                 if filteredNotes.isEmpty {
@@ -93,9 +112,10 @@ struct NotesView: View {
                         .padding(.vertical, 4)
                     }
                     .scrollIndicators(.never)
+                    .noScrollEdgeGlow()
                 }
 
-                Divider().opacity(0.3)
+                Divider()
 
                 // Bottom count
                 HStack {
@@ -150,17 +170,21 @@ struct NotesView: View {
                     .background(appSettings.theme.mainBg)
                 }
             }
-        }
-        .background(appSettings.theme.mainBg)
-        .onAppear {
-            if selectedNoteID == nil { selectedNoteID = filteredNotes.first?.id }
-        }
-        // Listen for New Note notifications from toolbar menu
-        .onReceive(NotificationCenter.default.publisher(for: .addPlainNote)) { _ in
-            addNote(type: .plainText(""))
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .addFormNote)) { _ in
-            addNote(type: .form([]))
+            }
+            .background(appSettings.theme.mainBg)
+            .onAppear {
+                if selectedNoteID == nil { selectedNoteID = filteredNotes.first?.id }
+            }
+            // Listen for New Note notifications from toolbar menu
+            .onReceive(NotificationCenter.default.publisher(for: .addPlainNote)) { _ in
+                addNote(type: .plainText(""))
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .addFormNote)) { _ in
+                addNote(type: .form([]))
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .addImageNote)) { _ in
+                addNote(type: .image(Data()))
+            }
         }
     }
 
@@ -194,6 +218,11 @@ struct NoteItemRow: View {
             return "\(chars) chars"
         case .form(let items):
             return "\(items.count) field\(items.count == 1 ? "" : "s")"
+        case .image(let data):
+            if let rep = NSImage(data: data)?.representations.first {
+                return "\(rep.pixelsWide) × \(rep.pixelsHigh)"
+            }
+            return "No image"
         }
     }
 
@@ -231,7 +260,7 @@ struct NoteItemRow: View {
 
                         // Type badge
                         HStack(spacing: 2) {
-                            Image(systemName: "doc.text")
+                            Image(systemName: note.content.typeIcon)
                                 .font(.system(size: 8))
                             Text(note.content.typeName)
                                 .font(.system(size: 9))

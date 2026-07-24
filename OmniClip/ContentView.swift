@@ -287,6 +287,7 @@ extension Notification.Name {
     static let showAddClipPanel = Notification.Name("showAddClipPanel")
     static let addPlainNote = Notification.Name("addPlainNote")
     static let addFormNote = Notification.Name("addFormNote")
+    static let addImageNote = Notification.Name("addImageNote")
 }
 
 // MARK: - Titlebar Toolbar View (embedded in titlebar accessory)
@@ -307,7 +308,16 @@ struct TitlebarToolbarView: View {
                 SearchField(text: $toolbarState.searchText, isFocused: $toolbarState.searchFieldFocused)
                     .frame(maxWidth: .infinity)
 
-                // "All" pill
+                // Stack toggle — 1st position
+                Button(action: { clipboardManager.toggleStackMode() }) {
+                    Image(systemName: "square.stack.3d.up.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(clipboardManager.isStackMode ? .accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(clipboardManager.isStackMode ? "Stop Stacking" : "Start Stacking")
+
+                // "All" pill — 2nd position
                 Button(action: { toolbarState.typeFilter = "All" }) {
                     Text("All")
                         .font(.system(size: 10, weight: toolbarState.typeFilter == "All" ? .semibold : .regular))
@@ -320,15 +330,6 @@ struct TitlebarToolbarView: View {
                         )
                 }
                 .buttonStyle(.plain)
-
-                // Stack toggle — 2nd position
-                Button(action: { clipboardManager.toggleStackMode() }) {
-                    Image(systemName: "square.stack.3d.up.fill")
-                        .font(.system(size: 13))
-                        .foregroundColor(clipboardManager.isStackMode ? .accentColor : .secondary)
-                }
-                .buttonStyle(.plain)
-                .help(clipboardManager.isStackMode ? "Stop Stacking" : "Start Stacking")
 
                 // Type filter pills
                 ForEach(["Text", "Image", "URL", "File"], id: \.self) { option in
@@ -423,6 +424,11 @@ struct TitlebarToolbarView: View {
                         NotificationCenter.default.post(name: .addFormNote, object: nil)
                     }) {
                         Label("Form Note", systemImage: "list.bullet.clipboard")
+                    }
+                    Button(action: {
+                        NotificationCenter.default.post(name: .addImageNote, object: nil)
+                    }) {
+                        Label("Image Note", systemImage: "photo")
                     }
                 } label: {
                     HStack(spacing: 4) {
